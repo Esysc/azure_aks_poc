@@ -18,13 +18,13 @@ jobs:
         with:
           terraform_version: 1.9.0
       - name: Install pipx
-        run: apt-get update && apt-get install -y pipx
+        run: sudo apt-get update && sudo apt-get install -y pipx
 
       - name: Install terraform-docs
         run: |
           wget https://github.com/terraform-docs/terraform-docs/releases/download/v0.17.0/terraform-docs-v0.17.0-linux-amd64.tar.gz
           tar -xzf terraform-docs-v0.17.0-linux-amd64.tar.gz
-          mv terraform-docs /usr/local/bin/
+          sudo mv terraform-docs /usr/local/bin/
       - name: Install pre-commit with pipx
         run: pipx install pre-commit
       - name: Run pre-commit
