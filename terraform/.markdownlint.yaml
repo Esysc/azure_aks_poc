@@ -1,0 +1,5 @@
+# For terraform-docs compatibility, disable some rules.
+MD013: false  # Disable line length rule
+MD033: false  # Allow inline HTML
+MD041: false  # No need for first line heading
+MD024: false  # Allow duplicate headings

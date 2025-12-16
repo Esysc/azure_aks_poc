@@ -1,0 +1,102 @@
+version: '3'
+tasks:
+  help:
+    desc: Show available tasks
+    cmds:
+      - echo "Available tasks:"
+      - echo "  task login"
+      - echo "  task init-remote-backend"
+      - echo "  task tf-init"
+      - echo "  task tf-plan"
+      - echo "  task tf-apply"
+      - echo "  task tf-destroy"
+      - echo "  task deploy-all"
+      - echo "  task destroy-all"
+      - echo "  task k8s-creds"
+      - echo "  task k8s-deploy"
+      - echo "  task k8s-status"
+      - echo "  task k8s-destroy"
+      - echo "  task clean"
+
+  login:
+    desc: Login to Azure
+    cmds:
+      - az login
+      - az account show
+
+  init-remote-backend:
+    desc: Initialize Azure resources for Terraform remote backend
+    cmds:
+      - ./init-remote-backend.sh
+
+  tf-init:
+    desc: Initialize Terraform
+    dir: terraform
+    cmds:
+      - terraform init
+
+  tf-plan:
+    desc: Plan infrastructure changes
+    dir: terraform
+    cmds:
+      - terraform plan
+
+  tf-apply:
+    desc: Apply infrastructure changes
+    dir: terraform
+    cmds:
+      - terraform apply
+
+  tf-destroy:
+    desc: Destroy all infrastructure
+    dir: terraform
+    cmds:
+      - terraform destroy
+
+  deploy-all:
+    desc: Apply infrastructure and deploy to AKS
+    cmds:
+      - task: init-remote-backend
+      - task: tf-apply
+      - task: k8s-deploy
+
+  destroy-all:
+    desc: Remove Kubernetes resources and destroy infrastructure
+    cmds:
+      - task: k8s-destroy
+      - task: tf-destroy
+      - task: clean
+
+  k8s-creds:
+    desc: Get AKS credentials
+    cmds:
+      - az aks get-credentials --resource-group rg-aks-poc --name aks-poc-cluster --overwrite-existing
+
+  k8s-deploy:
+    desc: Deploy Nginx to cluster
+    deps: [k8s-creds]
+    cmds:
+      - kubectl apply -f k8s/
+
+  k8s-status:
+    desc: Check service status
+    cmds:
+      - echo "=== Nodes ==="
+      - kubectl get nodes
+      - echo "\n=== Deployments ==="
+      - kubectl get deployments
+      - echo "\n=== Services ==="
+      - kubectl get svc
+
+  k8s-destroy:
+    desc: Remove Nginx deployment
+    cmds:
+      - kubectl delete -f k8s/
+
+  clean:
+    desc: Remove Terraform state files and Azure remote state storage
+    dir: terraform
+    cmds:
+      - rm -rf .terraform .terraform.lock.hcl
+      - rm -f *.tfstate*
+      - ./cleanup.sh

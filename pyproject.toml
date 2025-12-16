@@ -1,0 +1,12 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+changelog_start_rev = "HEAD"
+
+[tool.commitizen.commit_parser]
+message_pattern = "^(feat|fix|docs|style|refactor|test|chore|ci|revert)(?:\\(.+\\))?!?: .+"
+changelog_pattern = "^(feat|fix|refactor|perf)(?:\\(.+\\))?!?"
+change_type_map = {feat = "Features", fix = "Bug Fixes", refactor = "Code Refactoring", perf = "Performance"}
