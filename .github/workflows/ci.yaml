@@ -25,8 +25,6 @@ jobs:
           wget https://github.com/terraform-docs/terraform-docs/releases/download/v0.17.0/terraform-docs-v0.17.0-linux-amd64.tar.gz
           tar -xzf terraform-docs-v0.17.0-linux-amd64.tar.gz
           sudo mv terraform-docs /usr/local/bin/
-      - name: Install pre-commit with pipx
-        run: pipx install pre-commit
       - name: Run pre-commit
         run: pipx run pre-commit run --all-files
   terraform:
