@@ -45,27 +45,73 @@ tasks:
     desc: Apply infrastructure changes
     dir: terraform
     cmds:
-      - terraform apply
+      - terraform apply {{.CLI_ARGS}}
+
+  tf-apply-auto:
+    desc: Apply infrastructure changes (auto-approve)
+    dir: terraform
+    cmds:
+      - |
+        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
+        terraform apply -auto-approve
 
   tf-destroy:
     desc: Destroy all infrastructure
     dir: terraform
     cmds:
-      - terraform destroy
+      - |
+        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
+        terraform destroy {{.CLI_ARGS}}
+
+  tf-destroy-auto:
+    desc: Destroy all infrastructure (auto-approve)
+    dir: terraform
+    cmds:
+      - |
+        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
+        terraform destroy -auto-approve
+
+  tf-import-rg:
+    desc: Import existing resource group into Terraform state (if exists)
+    dir: terraform
+    cmds:
+      - |
+        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        terraform import -input=false azurerm_resource_group.rg /subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-aks-poc || true
+    silent: true
 
   deploy-all:
     desc: Apply infrastructure and deploy to AKS
     cmds:
       - task: init-remote-backend
-      - task: tf-apply
+      - task: tf-init
+      - task: tf-import-rg
+      - task: tf-apply-auto
       - task: k8s-deploy
 
   destroy-all:
     desc: Remove Kubernetes resources and destroy infrastructure
     cmds:
       - task: k8s-destroy
-      - task: tf-destroy
-      - task: clean
+      - task: tf-destroy-auto
+      - task: clean-storage
+      - task: clean-rg
+      - task: clean-networkwatcher
+      - task: clean-local
+
+  clean-rg:
+    desc: Delete resource group (fallback if terraform destroy fails)
+    cmds:
+      - az group delete --name rg-aks-poc --yes --no-wait || true
+
+  clean-networkwatcher:
+    desc: Delete NetworkWatcher resource groups
+    cmds:
+      - |
+        az group list --query "[?starts_with(name, 'NetworkWatcher')].name" -o tsv | while read -r rg; do
+          echo "Deleting $rg..."
+          az group delete --name "$rg" --yes --no-wait || true
+        done
 
   k8s-creds:
     desc: Get AKS credentials
@@ -90,13 +136,28 @@ tasks:
 
   k8s-destroy:
     desc: Remove Nginx deployment
+    deps: [k8s-creds]
     cmds:
-      - kubectl delete -f k8s/
+      - kubectl delete -f k8s/ --ignore-not-found=true || true
+
+  clean-storage:
+    desc: Remove Azure storage account for remote state
+    cmds:
+      - |
+        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"
+        az storage account delete --name "$STORAGE_ACCOUNT" --resource-group rg-aks-tfstate --yes || true
+      - az group delete --name rg-aks-tfstate --yes --no-wait || true
+
+  clean-local:
+    desc: Remove local Terraform state files
+    cmds:
+      - rm -rf terraform/.terraform terraform/.terraform.lock.hcl
+      - rm -f terraform/*.tfstate*
 
   clean:
     desc: Remove Terraform state files and Azure remote state storage
-    dir: terraform
     cmds:
-      - rm -rf .terraform .terraform.lock.hcl
-      - rm -f *.tfstate*
+      - rm -rf terraform/.terraform terraform/.terraform.lock.hcl
+      - rm -f terraform/*.tfstate*
       - ./cleanup.sh

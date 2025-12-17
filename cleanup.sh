@@ -7,14 +7,18 @@ set -e
 
 cd "$(dirname "$0")/terraform"
 
+# Get subscription ID dynamically
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
 # Hardcoded backend values (keep in sync with main.tf backend block)
-RESOURCE_GROUP="rg-aks-poc"
-STORAGE_ACCOUNT="pocstorageaccount"
+RESOURCE_GROUP="rg-aks-tfstate"  # Separate RG for state storage
+STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"
 CONTAINER="tfstatestore"
 STATE_FILE="terraform.tfstate"
 
-# Print only the state file name (other values are well-known and hardcoded)
+# Print values
+echo "SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
+echo "STORAGE_ACCOUNT: $STORAGE_ACCOUNT"
 echo "STATE_FILE: $STATE_FILE"
 
 echo "Deleting remote Terraform state file..."
@@ -51,3 +55,17 @@ if [ -n "$CONTAINERS" ]; then
 else
   echo "No containers found in the storage account."
 fi
+
+echo "Deleting terraform state resource group..."
+az group delete --name "$RESOURCE_GROUP" --yes --no-wait
+
+echo "Deleting AKS resource group (if exists)..."
+az group delete --name "rg-aks-poc" --yes --no-wait 2>/dev/null || true
+
+echo "Cleaning up NetworkWatcher resource groups..."
+az group list --query "[?starts_with(name, 'NetworkWatcher')].name" -o tsv | while read -r rg; do
+  echo "  Deleting $rg..."
+  az group delete --name "$rg" --yes --no-wait || true
+done
+
+echo "Cleanup complete. Resource group deletions are running in the background."

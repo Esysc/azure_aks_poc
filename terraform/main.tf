@@ -6,15 +6,20 @@ terraform {
     }
   }
   backend "azurerm" {
-    resource_group_name  = "rg-aks-poc"
-    storage_account_name = "pocstorageaccount"
+    resource_group_name  = "rg-aks-tfstate"
+    storage_account_name = "tfstatea95d9530"
     container_name       = "tfstatestore"
     key                  = "terraform.tfstate"
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
+  subscription_id = var.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
