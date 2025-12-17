@@ -1,5 +1,5 @@
 output "aks_fqdn" {
-  description = "AKS cluster public FQDN (DNS name)"
+  description = "AKS cluster API endpoint (for kubectl management, not web apps)"
   value       = azurerm_kubernetes_cluster.aks.fqdn
 }
 output "kube_config" {
@@ -16,4 +16,9 @@ output "cluster_name" {
 output "kube_config_context" {
   description = "Kubernetes context name for kubectl"
   value       = azurerm_kubernetes_cluster.aks.name
+}
+
+output "webapp_url" {
+  description = "Web application URL (nginx with DNS label)"
+  value       = "http://akspoc-nginx.westeurope.cloudapp.azure.com"
 }

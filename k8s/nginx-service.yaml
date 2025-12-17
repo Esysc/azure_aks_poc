@@ -5,6 +5,8 @@ metadata:
   namespace: default
   labels:
     app: nginx
+  annotations:
+    service.beta.kubernetes.io/azure-dns-label-name: "akspoc-nginx"
 spec:
   type: LoadBalancer
   selector:

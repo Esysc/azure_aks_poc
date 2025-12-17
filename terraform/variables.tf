@@ -1,4 +1,10 @@
 
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+  sensitive   = true
+}
+
 variable "location" {
   description = "Azure region for resources"
   type        = string
@@ -8,6 +14,7 @@ variable "location" {
 variable "container_name" {
   description = "The name of the storage container for the backend"
   type        = string
+  default     = "tfstatestore"
 }
 
 variable "cluster_name" {
@@ -31,5 +38,5 @@ variable "node_count" {
 variable "vm_size" {
   description = "VM size for the nodes"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_D2s_v3"
 }

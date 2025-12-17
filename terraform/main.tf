@@ -6,15 +6,18 @@ terraform {
     }
   }
   backend "azurerm" {
-    resource_group_name  = "rg-aks-poc"
-    storage_account_name = "pocstorageaccount"
-    container_name       = "tfstatestore"
-    key                  = "terraform.tfstate"
+    # Backend values passed via init command or environment variables
+    # TF_VAR not used here - use ARM_ env vars or -backend-config flags
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
+  subscription_id = var.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
