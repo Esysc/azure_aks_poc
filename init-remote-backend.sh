@@ -4,21 +4,23 @@
 
 set -e
 
-
+# Get current subscription and set it explicitly (fixes Azure CLI context issues)
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+az account set --subscription "$SUBSCRIPTION_ID"
 
 # Hardcoded backend values (keep in sync with main.tf backend block)
-RESOURCE_GROUP="rg-aks-poc"
+RESOURCE_GROUP="rg-aks-tfstate"  # Separate RG for state storage
 LOCATION="westeurope"
-STORAGE_ACCOUNT="pocstorageaccount"
+STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"  # Unique based on subscription
 CONTAINER_NAME="tfstatestore"
 
 # Print parsed variables and exit for testing
 echo "Backend values used for remote state:"
+echo "SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 echo "RESOURCE_GROUP: $RESOURCE_GROUP"
 echo "LOCATION: $LOCATION"
 echo "STORAGE_ACCOUNT: $STORAGE_ACCOUNT"
 echo "CONTAINER_NAME: $CONTAINER_NAME"
-exit 0
 
 # Create resource group if it doesn't exist
 echo "Checking resource group..."
@@ -27,11 +29,13 @@ az group show --name "$RESOURCE_GROUP" 2>/dev/null || \
 
 # Create storage account if it doesn't exist
 echo "Checking storage account..."
-az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" 2>/dev/null || \
-  az storage account create --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" --sku Standard_LRS
+if ! az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --subscription "$SUBSCRIPTION_ID" 2>/dev/null; then
+  echo "Creating storage account..."
+  az storage account create --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" --sku Standard_LRS --subscription "$SUBSCRIPTION_ID" 2>/dev/null || echo "Storage account already exists, using it..."
+fi
 
 # Get storage account key
-ACCOUNT_KEY=$(az storage account keys list --resource-group "$RESOURCE_GROUP" --account-name "$STORAGE_ACCOUNT" --query '[0].value' -o tsv)
+ACCOUNT_KEY=$(az storage account keys list --resource-group "$RESOURCE_GROUP" --account-name "$STORAGE_ACCOUNT" --subscription "$SUBSCRIPTION_ID" --query '[0].value' -o tsv)
 
 # Create container if it doesn't exist
 echo "Checking blob container..."
