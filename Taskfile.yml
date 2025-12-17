@@ -33,7 +33,14 @@ tasks:
     desc: Initialize Terraform
     dir: terraform
     cmds:
-      - terraform init
+      - |
+        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"
+        terraform init \
+          -backend-config="resource_group_name=rg-aks-tfstate" \
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
+          -backend-config="container_name=tfstatestore" \
+          -backend-config="key=terraform.tfstate"
 
   tf-plan:
     desc: Plan infrastructure changes

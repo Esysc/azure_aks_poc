@@ -47,8 +47,25 @@ jobs:
         with:
           terraform_version: 1.9.0
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Install Task
+        run: |
+          sudo sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+      - name: Setup Backend and Init
+        run: |
+          task init-backend
+          task tf-init
 
       - name: Terraform Plan
-        run: terraform plan -input=false
+        env:
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: cd terraform && terraform plan -input=false
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: task tf-apply-auto
+
+      - name: Terraform Destroy
+        if: always()
+        run: task destroy-all

@@ -6,10 +6,8 @@ terraform {
     }
   }
   backend "azurerm" {
-    resource_group_name  = "rg-aks-tfstate"
-    storage_account_name = "tfstatea95d9530"
-    container_name       = "tfstatestore"
-    key                  = "terraform.tfstate"
+    # Backend values passed via init command or environment variables
+    # TF_VAR not used here - use ARM_ env vars or -backend-config flags
   }
 }
 
