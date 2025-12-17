@@ -149,18 +149,19 @@ kubectl get svc nginx-service  # Wait for EXTERNAL-IP to appear
 ```
 
 Once the service is ready, access your application at:
+
 - **IP**: Check `kubectl get svc nginx-service` for EXTERNAL-IP
 - **DNS**: http://akspoc-nginx.westeurope.cloudapp.azure.com
 
 ### 6. Clean Up (IMPORTANT)
 
-**Option A: Using Task (Automated)**
+### Option A: Using Task (Automated)
 
 ```bash
 task destroy-all  # Deletes k8s resources, destroys infrastructure, cleans up storage
 ```
 
-**Option B: Manual**
+### Option B: Manual
 
 ```bash
 # Delete Kubernetes resources first
