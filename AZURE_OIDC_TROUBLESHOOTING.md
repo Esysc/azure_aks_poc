@@ -105,11 +105,11 @@ az storage account delete \
 
 ## Common Errors and Fixes
 
-- **Failed to resolve tenant '***'**
+- **Failed to resolve tenant `***`**
   - Check that `AZURE_TENANT_ID` is set and correct in GitHub secrets.
 - **No configured federated identity credentials**
   - Add a federated credential in Azure App Registration as described above.
-- **No subscriptions found for ***.**
+- **No subscriptions found for `***`**
   - Assign the required role (e.g., Contributor) to your Service Principal at the subscription scope.
 
 ---
