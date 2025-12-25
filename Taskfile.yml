@@ -1,4 +1,18 @@
 version: '3'
+
+vars:
+  # Auto-detect terraform or tofu (OpenTofu)
+  TF_CMD:
+    sh: |
+      if command -v terraform &> /dev/null; then
+        echo "terraform"
+      elif command -v tofu &> /dev/null; then
+        echo "tofu"
+      else
+        echo "ERROR: Neither 'terraform' nor 'tofu' found in PATH. Please install one of them." >&2
+        exit 1
+      fi
+
 tasks:
   help:
     desc: Show available tasks
@@ -30,12 +44,17 @@ tasks:
   kind-up:
     desc: Create Kind cluster and deploy app using Terraform
     cmds:
-      - echo "Creating Kind cluster..."
-      - kind create cluster --config kind-config.yaml --wait 60s
+      - |
+        if kind get clusters 2>/dev/null | grep -q "^aks-local$"; then
+          echo "Kind cluster 'aks-local' already exists, skipping creation..."
+        else
+          echo "Creating Kind cluster..."
+          kind create cluster --config kind-config.yaml --wait 60s
+        fi
       - echo ""
-      - echo "Deploying app with Terraform (local config)..."
-      - cd terraform/local && terraform init
-      - cd terraform/local && terraform apply -auto-approve
+      - echo "Deploying app with {{.TF_CMD}} (local config)..."
+      - cd terraform/local && {{.TF_CMD}} init
+      - cd terraform/local && {{.TF_CMD}} apply -auto-approve
       - echo ""
       - echo "Waiting for pods to be ready..."
       - kubectl wait --for=condition=ready pod -l app=postgres -n train-routing --timeout=120s
@@ -43,7 +62,7 @@ tasks:
       - kubectl wait --for=condition=ready pod -l app=frontend -n train-routing --timeout=180s
       - echo ""
       - echo "[OK] Deployment complete!"
-      - cd terraform/local && terraform output
+      - cd terraform/local && {{.TF_CMD}} output
       - echo ""
       - echo "Access the app at http://localhost:30000"
       - echo "Run 'task kind-status' to check pods"
@@ -51,7 +70,7 @@ tasks:
   kind-down:
     desc: Delete Kind cluster and cleanup Terraform
     cmds:
-      - cd terraform/local && terraform destroy -auto-approve || true
+      - cd terraform/local && {{.TF_CMD}} destroy -auto-approve || true
       - kind delete cluster --name aks-local
       - echo "[OK] Kind cluster deleted"
 
@@ -80,16 +99,16 @@ tasks:
     desc: Validate local Terraform syntax
     dir: terraform/local
     cmds:
-      - terraform init -backend=false
-      - terraform validate
+      - '{{.TF_CMD}} init -backend=false'
+      - '{{.TF_CMD}} validate'
       - echo "[OK] Local Terraform configuration is valid"
 
   validate-azure:
     desc: Validate Azure Terraform syntax
     dir: terraform/azure
     cmds:
-      - terraform init -backend=false
-      - terraform validate
+      - '{{.TF_CMD}} init -backend=false'
+      - '{{.TF_CMD}} validate'
       - echo "[OK] Azure Terraform configuration is valid"
 
   # ---------------------------------------------------------------------------
@@ -106,16 +125,16 @@ tasks:
     desc: Deploy to Azure AKS (creates cluster + deploys app)
     cmds:
       - echo "Deploying to Azure..."
-      - cd terraform/azure && terraform init
-      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform apply
+      - cd terraform/azure && {{.TF_CMD}} init
+      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) {{.TF_CMD}} apply
       - echo ""
       - echo "[OK] Azure deployment complete!"
-      - cd terraform/azure && terraform output
+      - cd terraform/azure && {{.TF_CMD}} output
 
   azure-down:
     desc: Destroy all Azure resources
     cmds:
-      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform destroy
+      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) {{.TF_CMD}} destroy
       - rm -rf terraform/azure/.terraform terraform/azure/terraform.tfstate* terraform/azure/.terraform.lock.hcl
       - echo "[OK] Azure resources destroyed and state cleaned"
 
@@ -123,8 +142,8 @@ tasks:
     desc: Plan Azure infrastructure changes
     dir: terraform/azure
     cmds:
-      - terraform init
-      - TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform plan
+      - '{{.TF_CMD}} init'
+      - TF_VAR_subscription_id=$(az account show --query id -o tsv) {{.TF_CMD}} plan
 
   azure-status:
     desc: Check Azure deployment status
