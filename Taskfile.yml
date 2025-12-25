@@ -125,6 +125,8 @@ tasks:
     desc: Deploy to Azure AKS (creates cluster + deploys app)
     cmds:
       - echo "Deploying to Azure..."
+      - echo "Setting up remote backend storage..."
+      - ./init-remote-backend.sh
       - cd terraform/azure && {{.TF_CMD}} init
       - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) {{.TF_CMD}} apply
       - echo ""
@@ -135,7 +137,8 @@ tasks:
     desc: Destroy all Azure resources
     cmds:
       - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) {{.TF_CMD}} destroy
-      - rm -rf terraform/azure/.terraform terraform/azure/terraform.tfstate* terraform/azure/.terraform.lock.hcl
+      - ./cleanup.sh
+      - rm -rf terraform/azure/.terraform terraform/azure/.terraform.lock.hcl
       - echo "[OK] Azure resources destroyed and state cleaned"
 
   azure-plan:
