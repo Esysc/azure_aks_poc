@@ -65,10 +65,16 @@ variable "app_secret" {
 }
 
 variable "jwt_passphrase" {
-  description = "JWT key passphrase"
+  description = "JWT key passphrase (only used if providing external keys)"
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "generate_jwt_keys" {
+  description = "Auto-generate JWT keys for multi-replica consistency (recommended)"
+  type        = bool
+  default     = true
 }
 
 variable "frontend_dns_label" {
@@ -90,6 +96,17 @@ variable "location" {
 locals {
   is_local = var.environment == "local"
   is_azure = var.environment == "azure"
+}
+
+# -----------------------------------------------------------------------------
+# JWT Key Generation
+# -----------------------------------------------------------------------------
+
+# Auto-generate RSA keys for JWT signing (stored in Terraform state)
+resource "tls_private_key" "jwt" {
+  count     = var.generate_jwt_keys ? 1 : 0
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
 # -----------------------------------------------------------------------------
@@ -123,6 +140,22 @@ resource "kubernetes_secret" "train_routing_secrets" {
     DATABASE_URL      = "postgresql://${var.postgres_user}:${var.postgres_password}@postgres:5432/${var.postgres_db}"
     APP_SECRET        = var.app_secret
     JWT_PASSPHRASE    = var.jwt_passphrase
+  }
+}
+
+# JWT keys secret (auto-generated for multi-replica consistency)
+resource "kubernetes_secret" "jwt_keys" {
+  count = var.generate_jwt_keys ? 1 : 0
+
+  metadata {
+    name      = "jwt-keys"
+    namespace = kubernetes_namespace.train_routing.metadata[0].name
+  }
+
+  data = {
+    # Use PKCS#8 format for private key (required by LexikJWTAuthenticationBundle)
+    "private.pem" = tls_private_key.jwt[0].private_key_pem_pkcs8
+    "public.pem"  = tls_private_key.jwt[0].public_key_pem
   }
 }
 
@@ -401,12 +434,12 @@ resource "kubernetes_deployment" "backend" {
 
           env {
             name  = "JWT_SECRET_KEY"
-            value = "%kernel.project_dir%/config/jwt/private.pem"
+            value = var.generate_jwt_keys ? "/etc/jwt/private.pem" : "%kernel.project_dir%/config/jwt/private.pem"
           }
 
           env {
             name  = "JWT_PUBLIC_KEY"
-            value = "%kernel.project_dir%/config/jwt/public.pem"
+            value = var.generate_jwt_keys ? "/etc/jwt/public.pem" : "%kernel.project_dir%/config/jwt/public.pem"
           }
 
           env {
@@ -435,6 +468,16 @@ resource "kubernetes_deployment" "backend" {
             }
           }
 
+          # Mount JWT keys if auto-generated
+          dynamic "volume_mount" {
+            for_each = var.generate_jwt_keys ? [1] : []
+            content {
+              name       = "jwt-keys"
+              mount_path = "/etc/jwt"
+              read_only  = true
+            }
+          }
+
           readiness_probe {
             http_get {
               path = "/api/v1/stations"
@@ -442,6 +485,17 @@ resource "kubernetes_deployment" "backend" {
             }
             initial_delay_seconds = 30
             period_seconds        = 10
+          }
+        }
+
+        # Volume for JWT keys (auto-generated)
+        dynamic "volume" {
+          for_each = var.generate_jwt_keys ? [1] : []
+          content {
+            name = "jwt-keys"
+            secret {
+              secret_name = kubernetes_secret.jwt_keys[0].metadata[0].name
+            }
           }
         }
       }

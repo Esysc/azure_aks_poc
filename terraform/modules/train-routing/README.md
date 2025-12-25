@@ -10,6 +10,7 @@ No requirements.
 | Name | Version |
 |------|---------|
 | <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | n/a |
+| <a name="provider_tls"></a> [tls](#provider\_tls) | n/a |
 
 ## Modules
 
@@ -25,10 +26,12 @@ No modules.
 | [kubernetes_deployment.postgres](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/deployment) | resource |
 | [kubernetes_namespace.train_routing](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace) | resource |
 | [kubernetes_persistent_volume_claim.postgres](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/persistent_volume_claim) | resource |
+| [kubernetes_secret.jwt_keys](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [kubernetes_secret.train_routing_secrets](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [kubernetes_service.backend](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/service) | resource |
 | [kubernetes_service.frontend](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/service) | resource |
 | [kubernetes_service.postgres](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/service) | resource |
+| [tls_private_key.jwt](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) | resource |
 
 ## Inputs
 
@@ -41,7 +44,8 @@ No modules.
 | <a name="input_frontend_dns_label"></a> [frontend\_dns\_label](#input\_frontend\_dns\_label) | DNS label for Azure LoadBalancer (azure only) | `string` | `"train-routing-app"` | no |
 | <a name="input_frontend_image"></a> [frontend\_image](#input\_frontend\_image) | Frontend container image | `string` | `"ghcr.io/esysc/defi-fullstack/frontend:latest"` | no |
 | <a name="input_frontend_replicas"></a> [frontend\_replicas](#input\_frontend\_replicas) | Number of frontend replicas | `number` | `1` | no |
-| <a name="input_jwt_passphrase"></a> [jwt\_passphrase](#input\_jwt\_passphrase) | JWT key passphrase | `string` | `""` | no |
+| <a name="input_generate_jwt_keys"></a> [generate\_jwt\_keys](#input\_generate\_jwt\_keys) | Auto-generate JWT keys for multi-replica consistency (recommended) | `bool` | `true` | no |
+| <a name="input_jwt_passphrase"></a> [jwt\_passphrase](#input\_jwt\_passphrase) | JWT key passphrase (only used if providing external keys) | `string` | `""` | no |
 | <a name="input_location"></a> [location](#input\_location) | Azure region (for DNS URL output) | `string` | `"westeurope"` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | Kubernetes namespace | `string` | `"train-routing"` | no |
 | <a name="input_postgres_db"></a> [postgres\_db](#input\_postgres\_db) | PostgreSQL database name | `string` | `"train_routing"` | no |
