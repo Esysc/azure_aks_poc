@@ -116,7 +116,7 @@ task kind-up
 # Check status
 task kind-status
 
-# View logs  
+# View logs
 task kind-logs
 
 # Destroy cluster
@@ -190,7 +190,7 @@ terraform destroy
 
 **Application Features:**
 - Train route calculation using Dijkstra's algorithm
-- Analytics dashboard for route statistics  
+- Analytics dashboard for route statistics
 - JWT-based authentication (register/login)
 - API documentation at `/api/docs`
 

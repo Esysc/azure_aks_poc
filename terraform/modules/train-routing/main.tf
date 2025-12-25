@@ -133,12 +133,12 @@ resource "kubernetes_secret" "train_routing_secrets" {
 # PVC only for Azure (local uses emptyDir)
 resource "kubernetes_persistent_volume_claim" "postgres" {
   count = local.is_azure ? 1 : 0
-  
+
   metadata {
     name      = "postgres-pvc"
     namespace = kubernetes_namespace.train_routing.metadata[0].name
   }
-  
+
   spec {
     access_modes       = ["ReadWriteOnce"]
     storage_class_name = "managed-csi"
