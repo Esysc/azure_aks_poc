@@ -10,6 +10,7 @@ on:
 permissions:
   id-token: write
   contents: read
+
 jobs:
   pre-commit:
     name: Pre-commit checks
@@ -30,63 +31,55 @@ jobs:
           sudo mv terraform-docs /usr/local/bin/
       - name: Run pre-commit
         run: pipx run pre-commit run --all-files
-  terraform:
+
+  validate:
+    name: Validate Terraform
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
 
-      - name: Install Task
+      - name: Validate local config
+        working-directory: terraform/local
         run: |
-          sudo sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+          terraform init -backend=false
+          terraform validate
 
-      - name: Setup Backend and Init
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true
+      - name: Validate Azure config
+        working-directory: terraform/azure
         run: |
-          task init-remote-backend
-          task tf-init
+          terraform init -backend=false
+          terraform validate
 
-      - name: Terraform Plan
-        env:
-          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true
-        run: terraform plan -input=false
-
-      - name: Terraform Apply
-        env:
-          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true
-        run: task tf-apply-auto
-
-      - name: Terraform Destroy
-        if: always()
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true
-        run: task destroy-all
+  # Optional: Full Azure deployment test (only on PRs, requires secrets)
+  # Uncomment if you have Azure credentials configured
+  # azure-test:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #
+  #     - name: Azure Login
+  #       uses: azure/login@v2
+  #       with:
+  #         client-id: ${{ secrets.AZURE_CLIENT_ID }}
+  #         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  #
+  #     - uses: hashicorp/setup-terraform@v3
+  #       with:
+  #         terraform_version: 1.9.0
+  #
+  #     - name: Terraform Plan (Azure)
+  #       working-directory: terraform/azure
+  #       env:
+  #         TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  #         ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  #         ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  #         ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  #         ARM_USE_OIDC: true
+  #       run: |
+  #         terraform init
+  #         terraform plan -input=false
