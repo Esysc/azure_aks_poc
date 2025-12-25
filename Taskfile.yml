@@ -4,19 +4,109 @@ tasks:
     desc: Show available tasks
     cmds:
       - echo "Available tasks:"
-      - echo "  task login"
-      - echo "  task init-remote-backend"
-      - echo "  task tf-init"
-      - echo "  task tf-plan"
-      - echo "  task tf-apply"
-      - echo "  task tf-destroy"
-      - echo "  task deploy-all"
-      - echo "  task destroy-all"
-      - echo "  task k8s-creds"
-      - echo "  task k8s-deploy"
-      - echo "  task k8s-status"
-      - echo "  task k8s-destroy"
-      - echo "  task clean"
+      - echo ""
+      - echo "  === Local Development (Kind) ==="
+      - echo "  task kind-up               - Create Kind cluster and deploy app"
+      - echo "  task kind-down             - Delete Kind cluster and cleanup"
+      - echo "  task kind-status           - Check Kind deployment status"
+      - echo "  task kind-logs             - View pod logs in Kind"
+      - echo "  task kind-migrate          - Run database migrations"
+      - echo "  task kind-seed             - Load sample data"
+      - echo ""
+      - echo "  === Azure Deployment ==="
+      - echo "  task login                 - Login to Azure"
+      - echo "  task azure-up              - Deploy to Azure AKS (full)"
+      - echo "  task azure-down            - Destroy Azure resources"
+      - echo "  task azure-status          - Check Azure deployment status"
+      - echo ""
+      - echo "  === Validation ==="
+      - echo "  task validate-local        - Validate local Terraform config"
+      - echo "  task validate-azure        - Validate Azure Terraform config"
+      - echo ""
+      - echo "  task clean                 - Remove local state files"
+
+  # ---------------------------------------------------------------------------
+  # Kind (local Kubernetes cluster)
+  # ---------------------------------------------------------------------------
+
+  kind-up:
+    desc: Create Kind cluster and deploy app using Terraform
+    cmds:
+      - echo "Creating Kind cluster..."
+      - kind create cluster --config kind-config.yaml --wait 60s
+      - echo ""
+      - echo "Deploying app with Terraform (local config)..."
+      - cd terraform/local && terraform init
+      - cd terraform/local && terraform apply -auto-approve
+      - echo ""
+      - echo "Waiting for pods to be ready..."
+      - kubectl wait --for=condition=ready pod -l app=postgres -n train-routing --timeout=120s
+      - kubectl wait --for=condition=ready pod -l app=backend -n train-routing --timeout=300s
+      - kubectl wait --for=condition=ready pod -l app=frontend -n train-routing --timeout=180s
+      - echo ""
+      - echo "[OK] Deployment complete!"
+      - cd terraform/local && terraform output
+      - echo ""
+      - echo "Access the app at http://localhost:30000"
+      - echo "Run 'task kind-status' to check pods"
+
+  kind-down:
+    desc: Delete Kind cluster and cleanup Terraform
+    cmds:
+      - cd terraform/local && terraform destroy -auto-approve || true
+      - kind delete cluster --name aks-local
+      - echo "[OK] Kind cluster deleted"
+
+  kind-status:
+    desc: Check Kind deployment status
+    cmds:
+      - echo "=== Nodes ==="
+      - kubectl get nodes
+      - echo ""
+      - echo "=== Pods ==="
+      - kubectl get pods -n train-routing
+      - echo ""
+      - echo "=== Services ==="
+      - kubectl get svc -n train-routing
+
+  kind-logs:
+    desc: View pod logs in Kind
+    cmds:
+      - echo "=== Backend Logs ==="
+      - kubectl logs -n train-routing -l app=backend --tail=50
+      - echo ""
+      - echo "=== Frontend Logs ==="
+      - kubectl logs -n train-routing -l app=frontend --tail=20
+
+  kind-migrate:
+    desc: Run database migrations
+    cmds:
+      - kubectl exec -n train-routing -it $(kubectl get pod -n train-routing -l app=backend -o jsonpath='{.items[0].metadata.name}') -- php bin/console doctrine:migrations:migrate --no-interaction
+
+  kind-seed:
+    desc: Load sample data (fixtures)
+    cmds:
+      - kubectl exec -n train-routing -it $(kubectl get pod -n train-routing -l app=backend -o jsonpath='{.items[0].metadata.name}') -- php bin/console doctrine:fixtures:load --no-interaction
+
+  validate-local:
+    desc: Validate local Terraform syntax
+    dir: terraform/local
+    cmds:
+      - terraform init -backend=false
+      - terraform validate
+      - echo "[OK] Local Terraform configuration is valid"
+
+  validate-azure:
+    desc: Validate Azure Terraform syntax
+    dir: terraform/azure
+    cmds:
+      - terraform init -backend=false
+      - terraform validate
+      - echo "[OK] Azure Terraform configuration is valid"
+
+  # ---------------------------------------------------------------------------
+  # Azure Deployment
+  # ---------------------------------------------------------------------------
 
   login:
     desc: Login to Azure
@@ -24,147 +114,50 @@ tasks:
       - az login
       - az account show
 
-  init-remote-backend:
-    desc: Initialize Azure resources for Terraform remote backend
+  azure-up:
+    desc: Deploy to Azure AKS (creates cluster + deploys app)
     cmds:
-      - ./init-remote-backend.sh
+      - echo "Deploying to Azure..."
+      - cd terraform/azure && terraform init
+      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform apply
+      - echo ""
+      - echo "[OK] Azure deployment complete!"
+      - cd terraform/azure && terraform output
 
-  tf-init:
-    desc: Initialize Terraform
-    dir: terraform
+  azure-down:
+    desc: Destroy all Azure resources
     cmds:
-      - |
-        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-        STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"
-        terraform init \
-          -backend-config="resource_group_name=rg-aks-tfstate" \
-          -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
-          -backend-config="container_name=tfstatestore" \
-          -backend-config="key=terraform.tfstate"
+      - cd terraform/azure && TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform destroy
+      - rm -rf terraform/azure/.terraform terraform/azure/terraform.tfstate* terraform/azure/.terraform.lock.hcl
+      - echo "[OK] Azure resources destroyed and state cleaned"
 
-  tf-plan:
-    desc: Plan infrastructure changes
-    dir: terraform
+  azure-plan:
+    desc: Plan Azure infrastructure changes
+    dir: terraform/azure
     cmds:
-      - terraform plan
+      - terraform init
+      - TF_VAR_subscription_id=$(az account show --query id -o tsv) terraform plan
 
-  tf-apply:
-    desc: Apply infrastructure changes
-    dir: terraform
+  azure-status:
+    desc: Check Azure deployment status
     cmds:
-      - terraform apply {{.CLI_ARGS}}
-
-  tf-apply-auto:
-    desc: Apply infrastructure changes (auto-approve)
-    dir: terraform
-    cmds:
-      - |
-        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
-        terraform apply -auto-approve
-
-  tf-destroy:
-    desc: Destroy all infrastructure
-    dir: terraform
-    cmds:
-      - |
-        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
-        terraform destroy {{.CLI_ARGS}}
-
-  tf-destroy-auto:
-    desc: Destroy all infrastructure (auto-approve)
-    dir: terraform
-    cmds:
-      - |
-        export TF_VAR_subscription_id=$(az account show --query id -o tsv)
-        terraform destroy -auto-approve
-
-  tf-import-rg:
-    desc: Import existing resource group into Terraform state (if exists)
-    dir: terraform
-    cmds:
-      - |
-        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-        terraform import -input=false azurerm_resource_group.rg /subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-aks-poc || true
-    silent: true
-
-  deploy-all:
-    desc: Apply infrastructure and deploy to AKS
-    cmds:
-      - task: init-remote-backend
-      - task: tf-init
-      - task: tf-import-rg
-      - task: tf-apply-auto
-      - task: k8s-deploy
-
-  destroy-all:
-    desc: Remove Kubernetes resources and destroy infrastructure
-    cmds:
-      - task: k8s-destroy
-      - task: tf-destroy-auto
-      - task: clean-storage
-      - task: clean-rg
-      - task: clean-networkwatcher
-      - task: clean-local
-
-  clean-rg:
-    desc: Delete resource group (fallback if terraform destroy fails)
-    cmds:
-      - az group delete --name rg-aks-poc --yes --no-wait || true
-
-  clean-networkwatcher:
-    desc: Delete NetworkWatcher resource groups
-    cmds:
-      - |
-        az group list --query "[?starts_with(name, 'NetworkWatcher')].name" -o tsv | while read -r rg; do
-          echo "Deleting $rg..."
-          az group delete --name "$rg" --yes --no-wait || true
-        done
-
-  k8s-creds:
-    desc: Get AKS credentials
-    cmds:
-      - az aks get-credentials --resource-group rg-aks-poc --name aks-poc-cluster --overwrite-existing
-
-  k8s-deploy:
-    desc: Deploy Nginx to cluster
-    deps: [k8s-creds]
-    cmds:
-      - kubectl apply -f k8s/
-
-  k8s-status:
-    desc: Check service status
-    cmds:
+      - az aks get-credentials --resource-group aks-poc-rg --name aks-poc-cluster --overwrite-existing
       - echo "=== Nodes ==="
       - kubectl get nodes
-      - echo "\n=== Deployments ==="
-      - kubectl get deployments
-      - echo "\n=== Services ==="
-      - kubectl get svc
-
-  k8s-destroy:
-    desc: Remove Nginx deployment
-    deps: [k8s-creds]
-    cmds:
-      - kubectl delete -f k8s/ --ignore-not-found=true || true
-
-  clean-storage:
-    desc: Remove Azure storage account for remote state
-    cmds:
-      - |
-        SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-        STORAGE_ACCOUNT="tfstate${SUBSCRIPTION_ID:0:8}"
-        az storage account delete --name "$STORAGE_ACCOUNT" --resource-group rg-aks-tfstate --yes || true
-      - az group delete --name rg-aks-tfstate --yes --no-wait || true
-
-  clean-local:
-    desc: Remove local Terraform state files
-    cmds:
-      - rm -rf terraform/.terraform terraform/.terraform.lock.hcl
-      - rm -f terraform/*.tfstate*
+      - echo ""
+      - echo "=== Pods ==="
+      - kubectl get pods -n train-routing
+      - echo ""
+      - echo "=== Services ==="
+      - kubectl get svc -n train-routing
+      - echo ""
+      - echo "=== Frontend URL ==="
+      - kubectl get svc frontend -n train-routing -o jsonpath='http://{.status.loadBalancer.ingress[0].ip}'
+      - echo ""
 
   clean:
-    desc: Remove Terraform state files and Azure remote state storage
+    desc: Remove all Terraform state files
     cmds:
-      - rm -rf terraform/.terraform terraform/.terraform.lock.hcl
-      - rm -f terraform/*.tfstate*
-      - ./cleanup.sh
+      - rm -rf terraform/local/.terraform terraform/local/terraform.tfstate* terraform/local/.terraform.lock.hcl
+      - rm -rf terraform/azure/.terraform terraform/azure/terraform.tfstate* terraform/azure/.terraform.lock.hcl
+      - echo "[OK] Cleaned up Terraform state files"

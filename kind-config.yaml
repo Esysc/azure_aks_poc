@@ -1,0 +1,13 @@
+# Kind cluster configuration for local testing
+# Creates a single-node cluster with port mappings for the app
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: aks-local
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Frontend NodePort (mapped to localhost:30000)
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP

@@ -1,0 +1,19 @@
+# Azure AKS Deployment Variables
+# Copy this file to terraform.tfvars and fill in your values
+
+subscription_id     = "your-subscription-id"
+resource_group_name = "aks-poc-rg"
+location            = "westeurope"
+cluster_name        = "aks-poc-cluster"
+kubernetes_version  = "1.30"
+node_count          = 2
+vm_size             = "Standard_B2s"
+backend_replicas    = 2
+frontend_replicas   = 2
+frontend_dns_label  = "train-routing-app"
+
+tags = {
+  Environment = "Production"
+  Project     = "AKS-POC"
+  ManagedBy   = "Terraform"
+}
