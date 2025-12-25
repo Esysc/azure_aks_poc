@@ -36,7 +36,7 @@
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | AKS cluster name | `string` | `"aks-poc-cluster"` | no |
 | <a name="input_frontend_dns_label"></a> [frontend\_dns\_label](#input\_frontend\_dns\_label) | DNS label for the frontend LoadBalancer | `string` | `"train-routing-app"` | no |
 | <a name="input_frontend_replicas"></a> [frontend\_replicas](#input\_frontend\_replicas) | Number of frontend replicas | `number` | `2` | no |
-| <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Kubernetes version | `string` | `"1.30"` | no |
+| <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Kubernetes version | `string` | `"1.32"` | no |
 | <a name="input_location"></a> [location](#input\_location) | Azure region | `string` | `"westeurope"` | no |
 | <a name="input_node_count"></a> [node\_count](#input\_node\_count) | Number of nodes in the default node pool | `number` | `2` | no |
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Resource group name | `string` | `"aks-poc-rg"` | no |
