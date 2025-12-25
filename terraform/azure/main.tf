@@ -16,13 +16,14 @@ terraform {
     }
   }
 
-  # Uncomment to use remote state in Azure Storage
-  # backend "azurerm" {
-  #   resource_group_name  = "terraform-state-rg"
-  #   storage_account_name = "tfstateakspocstorage"
-  #   container_name       = "tfstate"
-  #   key                  = "azure.terraform.tfstate"
-  # }
+  # Remote state in Azure Storage
+  # Run ./init-remote-backend.sh first to create the storage account
+  backend "azurerm" {
+    resource_group_name  = "rg-aks-tfstate"
+    storage_account_name = "tfstatea95d9530" # tfstate + first 8 chars of subscription ID
+    container_name       = "tfstatestore"
+    key                  = "azure.terraform.tfstate"
+  }
 }
 
 # -----------------------------------------------------------------------------
