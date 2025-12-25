@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.35"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 
   # Remote state in Azure Storage
@@ -177,6 +181,9 @@ module "train_routing" {
   backend_replicas   = var.backend_replicas
   frontend_replicas  = var.frontend_replicas
   frontend_dns_label = var.frontend_dns_label
+
+  # Auto-generate JWT keys for multi-replica auth consistency
+  generate_jwt_keys = true
 
   depends_on = [azurerm_kubernetes_cluster.aks]
 }

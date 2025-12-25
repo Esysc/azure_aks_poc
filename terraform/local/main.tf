@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.35"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
@@ -35,6 +39,9 @@ module "train_routing" {
   # Lower resource usage for local dev
   backend_replicas  = 1
   frontend_replicas = 1
+
+  # Auto-generate JWT keys (optional for single replica, but good for consistency)
+  generate_jwt_keys = true
 }
 
 # -----------------------------------------------------------------------------
