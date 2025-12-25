@@ -3,7 +3,8 @@
 # This script cleans up remote Terraform state and storage resources after 'terraform destroy'.
 # It automatically retrieves resource group and other outputs from Terraform.
 
-set -e
+# Don't exit on error - we want to continue cleanup even if some resources are already gone
+set +e
 
 cd "$(dirname "$0")/terraform"
 
@@ -26,25 +27,25 @@ az storage blob delete \
   --account-name "$STORAGE_ACCOUNT" \
   --container-name "$CONTAINER" \
   --name "$STATE_FILE" \
-  --auth-mode login
+  --auth-mode key 2>/dev/null || echo "  (already deleted or not found)"
 
 echo "Deleting storage container..."
 az storage container delete \
   --account-name "$STORAGE_ACCOUNT" \
   --name "$CONTAINER" \
-  --auth-mode login
+  --auth-mode key 2>/dev/null || echo "  (already deleted or not found)"
 
 echo "Deleting storage account (this will remove all containers/blobs and cannot be undone)..."
-az storage account delete --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --yes
+az storage account delete --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --yes 2>/dev/null || echo "  (already deleted or not found)"
 
 # Check for remaining resources in the storage account before deletion
 echo "Checking for remaining containers/blobs in storage account..."
-CONTAINERS=$(az storage container list --account-name "$STORAGE_ACCOUNT" --auth-mode login --query '[].name' -o tsv)
+CONTAINERS=$(az storage container list --account-name "$STORAGE_ACCOUNT" --auth-mode key --query '[].name' -o tsv 2>/dev/null) || true
 if [ -n "$CONTAINERS" ]; then
   echo "Warning: The following containers still exist in the storage account:"
   echo "$CONTAINERS"
   for container in $CONTAINERS; do
-    BLOBS=$(az storage blob list --account-name "$STORAGE_ACCOUNT" --container-name "$container" --auth-mode login --query '[].name' -o tsv)
+    BLOBS=$(az storage blob list --account-name "$STORAGE_ACCOUNT" --container-name "$container" --auth-mode key --query '[].name' -o tsv 2>/dev/null) || true
     if [ -n "$BLOBS" ]; then
       echo "  Container '$container' contains blobs:"
       echo "$BLOBS" | sed 's/^/    - /'

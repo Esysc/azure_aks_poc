@@ -17,6 +17,7 @@ repos:
           - --hook-config=--path-type=relative
           - --hook-config=--add-to-existing-terraform-docs=true
           - --hook-config=--create-file-if-not-exist=true
+          - --args=--lockfile=false
 
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.10.0

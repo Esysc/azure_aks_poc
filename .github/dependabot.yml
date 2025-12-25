@@ -1,21 +1,36 @@
 version: 2
 updates:
+  # Terraform - local config
   - package-ecosystem: "terraform"
-    directory: "/terraform"
+    directory: "/terraform/local"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "terraform"
-  - package-ecosystem: "docker"
-    directory: "/k8s"
+
+  # Terraform - azure config
+  - package-ecosystem: "terraform"
+    directory: "/terraform/azure"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "docker"
+      - "terraform"
+
+  # Terraform - shared module
+  - package-ecosystem: "terraform"
+    directory: "/terraform/modules/train-routing"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "terraform"
+
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

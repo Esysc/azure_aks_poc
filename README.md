@@ -10,7 +10,7 @@ This POC demonstrates:
 - **Remote State**: Azure Storage backend for Terraform state management
 - **Local Validation**: Pre-commit hooks for Terraform formatting and validation
 - **CI/CD**: GitHub Actions workflow for Terraform planning and Azure authentication
-- **Application Deployment**: Nginx running on Kubernetes with LoadBalancer service and DNS label
+- **Application Deployment**: Train Routing & Analytics full-stack app (Vue.js + PHP/Symfony + PostgreSQL)
 - **Zero Cost**: Uses Azure free credits; designed to be destroyed immediately after testing
 
 ## Prerequisites
@@ -19,7 +19,7 @@ This POC demonstrates:
 
 - Create a free Azure account with 200 USD / 30-day credit
 - The AKS control plane is free on the "Free" SKU tier
-- Single `Standard_D2s_v3` node ~$0.10/hour; total test cost is minimal if cluster is destroyed after use
+- Single `Standard_B2s` node ~$0.02/hour; total test cost is minimal if cluster is destroyed after use
 - **Note**: Register the `Microsoft.Storage` provider before running: `az provider register --namespace Microsoft.Storage`
 
 ### Local Tools (All Free)
@@ -85,120 +85,130 @@ az account show --query id
 
 ## Quick Start
 
-### Option A: Automated Workflow (Recommended)
+### Option A: Local Testing with Kind (No Azure Required)
+
+Test the application locally using Kind (Kubernetes in Docker) without any Azure costs.
+
+#### Prerequisites for Mac Users (Apple Silicon)
+
+If you're on an Apple Silicon Mac (M1/M2/M3), you need to run Colima with x86_64 emulation since the container images are amd64-only:
+
+```bash
+# Install Colima and Kind
+brew install colima kind lima-additional-guestagents
+
+# Delete existing Colima instance (if any)
+colima stop && colima delete
+
+# Start Colima with x86_64 emulation
+colima start --arch x86_64 --cpu 4 --memory 6 --vm-type qemu
+
+# Verify architecture
+colima status  # Should show arch: x86_64
+```
+
+#### Deploy to Kind
+
+```bash
+# Create cluster and deploy app
+task kind-up
+
+# Check status
+task kind-status
+
+# View logs
+task kind-logs
+
+# Destroy cluster
+task kind-down
+```
+
+Access the app at:
+- **Frontend**: http://localhost:30000
+- **API (via nginx proxy)**: http://localhost:30000/api/v1
+
+#### Validate Terraform (syntax only)
+
+```bash
+task validate-local   # Validate local config
+task validate-azure   # Validate Azure config
+```
+
+### Option B: Azure Deployment
 
 ```bash
 # 1. Authenticate with Azure
 task login
 
-# 2. Deploy everything (infrastructure + application)
-task deploy-all
+# 2. Deploy to Azure AKS (interactive)
+task azure-up
 
 # 3. Check status
-task k8s-status
+task azure-status
 
-# 4. Clean up everything
-task destroy-all
+# 4. Clean up
+task azure-down
 ```
 
-### Option B: Manual Step-by-Step
-
-### 1. Authenticate with Azure
+### Option C: Manual Step-by-Step (Azure)
 
 ```bash
+# 1. Authenticate with Azure
 az login
-az account show  # Verify you're using the correct subscription
-```
+az account show  # Verify subscription
 
-### 2. Initialize Remote State Backend
-
-```bash
-# Create Azure storage for Terraform state in separate resource group
-./init-remote-backend.sh
-```
-
-### 3. Initialize and Deploy Infrastructure
-
-```bash
-cd terraform
+# 2. Deploy to Azure AKS
+cd terraform/azure
 terraform init
+export TF_VAR_subscription_id=$(az account show --query id -o tsv)
 terraform plan     # Review changes
 terraform apply    # Type 'yes' to confirm
-```
 
-Wait for AKS cluster creation (~5-10 minutes).
+# Wait ~10 minutes for AKS cluster creation
 
-### 4. Configure kubectl
-
-```bash
-az aks get-credentials \
-  --resource-group rg-aks-poc \
-  --name aks-poc-cluster \
-  --overwrite-existing
-
+# 3. Configure kubectl
+az aks get-credentials --resource-group aks-poc-rg --name aks-poc-cluster --overwrite-existing
 kubectl get nodes  # Verify cluster is ready
+
+# 4. Check application
+kubectl get all -n train-routing
+kubectl get svc frontend -n train-routing  # Get EXTERNAL-IP
+
+# 5. Clean up (IMPORTANT - avoid charges!)
+terraform destroy
 ```
 
-### 5. Deploy Nginx
+**Application Features:**
+- Train route calculation using Dijkstra's algorithm
+- Analytics dashboard for route statistics
+- JWT-based authentication (register/login)
+- API documentation at `/api/docs`
 
-```bash
-kubectl apply -f k8s/nginx-deployment.yaml
-kubectl apply -f k8s/nginx-service.yaml
-
-kubectl get svc nginx-service  # Wait for EXTERNAL-IP to appear
-```
-
-Once the service is ready, access your application at:
-
-- **IP**: Check `kubectl get svc nginx-service` for EXTERNAL-IP
-- **DNS**: http://akspoc-nginx.westeurope.cloudapp.azure.com
-
-### 6. Clean Up (IMPORTANT)
-
-### Option A: Using Task (Automated)
-
-```bash
-task destroy-all  # Deletes k8s resources, destroys infrastructure, cleans up storage
-```
-
-### Option B: Manual
-
-```bash
-# Delete Kubernetes resources first
-kubectl delete -f k8s/
-
-# Destroy infrastructure
-cd terraform
-terraform destroy  # Type 'yes' to confirm
-
-# Clean up storage and resource groups
-cd ..
-./cleanup.sh
-```
-
-**Note**: Terraform state is stored in a separate resource group (`rg-aks-tfstate`) to prevent race conditions during destroy operations.
-
-**Destroy immediately after testing to avoid charges.** The entire test window should cost $0–$5 at most, covered by Azure free credits.
+**Destroy immediately after testing.** Total cost: $0–$5, covered by Azure free credits.
 
 ## Project Structure
 
 ```shell
 .
-├── terraform/              # Infrastructure as Code
-│   ├── main.tf            # AKS cluster + resource group + backend config
-│   ├── variables.tf       # Input variables
-│   └── outputs.tf         # Cluster connection details
-├── k8s/                   # Kubernetes manifests
-│   ├── nginx-deployment.yaml
-│   └── nginx-service.yaml
-├── .github/workflows/     # CI/CD
-│   └── ci.yaml           # GitHub Actions: Terraform plan & Azure auth
-├── Taskfile.yml          # Task automation definitions
-├── init-remote-backend.sh # Initialize Azure storage for Terraform state
-├── cleanup.sh            # Complete cleanup script
-├── .pre-commit-config.yaml # Local validation hooks
-├── .gitignore            # Git ignore rules
-└── README.md             # This file
+├── terraform/
+│   ├── modules/
+│   │   └── train-routing/     # Shared K8s app resources (used by both local & azure)
+│   │       └── main.tf        # Namespace, secrets, deployments, services
+│   ├── local/                 # Local Kind deployment config
+│   │   └── main.tf           # Kubernetes provider + module call
+│   └── azure/                 # Azure AKS deployment config
+│       ├── main.tf           # AKS cluster + Kubernetes provider + module call
+│       └── terraform.tfvars.example
+├── k8s/                       # Raw Kubernetes manifests (reference)
+│   └── train-routing/        # Train Routing app manifests
+├── kind-config.yaml          # Kind cluster configuration
+├── .github/workflows/        # CI/CD
+│   └── ci.yaml              # GitHub Actions: Terraform plan
+├── Taskfile.yml             # Task automation definitions
+├── init-remote-backend.sh   # Initialize Azure storage for Terraform state
+├── cleanup.sh               # Complete cleanup script
+├── .pre-commit-config.yaml  # Local validation hooks
+└── README.md                # This file
 ```
 
 ## Task Commands
@@ -206,39 +216,63 @@ cd ..
 Available automated workflows:
 
 ```bash
-task help                  # Show all available tasks
+# Local Testing with Kind (no Azure needed)
+task kind-up               # Create Kind cluster + deploy app
+task kind-down             # Delete Kind cluster + cleanup
+task kind-status           # Check Kind pods
+task kind-logs             # View pod logs
+
+# Azure Deployment
 task login                 # Login to Azure
-task deploy-all            # Full deployment (backend + terraform + k8s)
-task destroy-all           # Complete cleanup (k8s + terraform + storage)
-task k8s-status            # Check deployment status
-task k8s-deploy            # Deploy only k8s resources
-task k8s-destroy           # Remove k8s resources
-task tf-plan               # Terraform plan
-task tf-apply              # Terraform apply (interactive)
-task tf-destroy            # Terraform destroy (interactive)
+task azure-up              # Deploy to Azure AKS
+task azure-down            # Destroy Azure resources
+task azure-status          # Check deployment status
+task azure-plan            # Terraform plan for Azure
+
+# Validation
+task validate-local        # Validate local Terraform config
+task validate-azure        # Validate Azure Terraform config
+task clean                 # Remove all Terraform state files
 ```
 
 ## Configuration
 
-All defaults in `terraform/variables.tf` can be overridden:
+### Local (Kind)
+
+No configuration needed - just run `task kind-up`.
+
+### Azure
+
+Copy the example file and fill in your subscription ID:
 
 ```bash
+cd terraform/azure
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+```
+
+Or pass variables on the command line (subscription ID is auto-detected from `az account`):
+
+```bash
+cd terraform/azure
 terraform apply -var="location=eastus" -var="node_count=2"
 ```
 
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `location` | westeurope | Azure region |
-| `node_count` | 1 | Number of nodes (keep at 1 for cost) |
-| `vm_size` | Standard_D2s_v3 | VM size for nodes (2 vCPU, 8 GB RAM) |
+| `node_count` | 2 | Number of nodes |
+| `vm_size` | Standard_B2s | VM size for nodes |
 | `cluster_name` | aks-poc-cluster | AKS cluster name |
+| `backend_replicas` | 2 | Backend pod replicas |
+| `frontend_replicas` | 2 | Frontend pod replicas |
 
 ## Cost Management
 
 | Component | Cost | Duration |
 |-----------|------|----------|
 | AKS Control Plane | **Free** (Free tier) | Always |
-| 1× Standard_D2s_v3 Node | ~$0.10/hour | While running |
+| 2× Standard_B2s Nodes | ~$0.04/hour | While running |
 | LoadBalancer (public IP) | ~$0.005/hour | While running |
 | Storage Account (state) | ~$0.02/month | Persistent |
 | **Total for 30-minute test** | **~$0.06** | Covered by free credits |
@@ -257,16 +291,23 @@ az login
 ### Terraform state issues
 
 ```bash
-rm -rf terraform/.terraform
-rm -f terraform/.terraform.lock.hcl
-terraform init
+# For local
+rm -rf terraform/local/.terraform terraform/local/.terraform.lock.hcl
+cd terraform/local && terraform init
+
+# For Azure
+rm -rf terraform/azure/.terraform terraform/azure/.terraform.lock.hcl
+cd terraform/azure && terraform init
 ```
 
 ### kubectl can't connect
 
 ```bash
-# Refresh credentials
-az aks get-credentials --resource-group rg-aks-poc --name aks-poc-cluster --overwrite-existing
+# For Azure - refresh credentials
+az aks get-credentials --resource-group aks-poc-rg --name aks-poc-cluster --overwrite-existing
+
+# For Kind - switch context
+kubectl config use-context kind-aks-local
 
 # Check context
 kubectl config current-context
@@ -276,7 +317,26 @@ kubectl config current-context
 
 ```bash
 # Wait a bit longer, then check again
-kubectl get svc nginx-service -w  # Watch for EXTERNAL-IP
+kubectl get svc frontend -n train-routing -w  # Watch for EXTERNAL-IP
+```
+
+### Backend pods not starting
+
+```bash
+# Check if PostgreSQL is ready first
+kubectl logs -n train-routing deployment/postgres
+kubectl get pods -n train-routing
+
+# Check backend logs
+kubectl logs -n train-routing deployment/backend
+```
+
+### Database connection issues
+
+```bash
+# Verify secrets are properly configured
+kubectl get secrets -n train-routing
+kubectl describe secret train-routing-secrets -n train-routing
 ```
 
 ## Next Steps
