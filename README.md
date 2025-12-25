@@ -127,16 +127,6 @@ Access the app at:
 - **Frontend**: http://localhost:30000
 - **API (via nginx proxy)**: http://localhost:30000/api/v1
 
-#### Database Setup (first time)
-
-```bash
-# Run database migrations
-task kind-migrate
-
-# Load sample data
-task kind-seed
-```
-
 #### Validate Terraform (syntax only)
 
 ```bash
@@ -231,8 +221,6 @@ task kind-up               # Create Kind cluster + deploy app
 task kind-down             # Delete Kind cluster + cleanup
 task kind-status           # Check Kind pods
 task kind-logs             # View pod logs
-task kind-migrate          # Run database migrations
-task kind-seed             # Load sample data
 
 # Azure Deployment
 task login                 # Login to Azure

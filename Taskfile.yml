@@ -10,8 +10,6 @@ tasks:
       - echo "  task kind-down             - Delete Kind cluster and cleanup"
       - echo "  task kind-status           - Check Kind deployment status"
       - echo "  task kind-logs             - View pod logs in Kind"
-      - echo "  task kind-migrate          - Run database migrations"
-      - echo "  task kind-seed             - Load sample data"
       - echo ""
       - echo "  === Azure Deployment ==="
       - echo "  task login                 - Login to Azure"
@@ -77,16 +75,6 @@ tasks:
       - echo ""
       - echo "=== Frontend Logs ==="
       - kubectl logs -n train-routing -l app=frontend --tail=20
-
-  kind-migrate:
-    desc: Run database migrations
-    cmds:
-      - kubectl exec -n train-routing -it $(kubectl get pod -n train-routing -l app=backend -o jsonpath='{.items[0].metadata.name}') -- php bin/console doctrine:migrations:migrate --no-interaction
-
-  kind-seed:
-    desc: Load sample data (fixtures)
-    cmds:
-      - kubectl exec -n train-routing -it $(kubectl get pod -n train-routing -l app=backend -o jsonpath='{.items[0].metadata.name}') -- php bin/console doctrine:fixtures:load --no-interaction
 
   validate-local:
     desc: Validate local Terraform syntax
