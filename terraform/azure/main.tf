@@ -67,7 +67,7 @@ variable "node_count" {
 variable "vm_size" {
   description = "VM size for the default node pool"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_D2s_v3"
 }
 
 variable "backend_replicas" {

@@ -42,7 +42,7 @@
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Resource group name | `string` | `"aks-poc-rg"` | no |
 | <a name="input_subscription_id"></a> [subscription\_id](#input\_subscription\_id) | Azure subscription ID | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags to apply to all resources | `map(string)` | <pre>{<br/>  "Environment": "Production",<br/>  "ManagedBy": "Terraform",<br/>  "Project": "AKS-POC"<br/>}</pre> | no |
-| <a name="input_vm_size"></a> [vm\_size](#input\_vm\_size) | VM size for the default node pool | `string` | `"Standard_B2s"` | no |
+| <a name="input_vm_size"></a> [vm\_size](#input\_vm\_size) | VM size for the default node pool | `string` | `"Standard_D2s_v3"` | no |
 
 ## Outputs
 
