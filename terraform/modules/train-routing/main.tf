@@ -148,6 +148,9 @@ resource "kubernetes_persistent_volume_claim" "postgres" {
       }
     }
   }
+
+  # Don't wait for binding - managed-csi uses WaitForFirstConsumer
+  wait_until_bound = false
 }
 
 resource "kubernetes_deployment" "postgres" {
@@ -212,6 +215,12 @@ resource "kubernetes_deployment" "postgres" {
                 key  = "POSTGRES_DB"
               }
             }
+          }
+
+          # Use subdirectory to avoid lost+found issue on Azure disks
+          env {
+            name  = "PGDATA"
+            value = "/var/lib/postgresql/data/pgdata"
           }
 
           resources {
