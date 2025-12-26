@@ -328,37 +328,6 @@ resource "kubernetes_service" "postgres" {
 # Backend
 # -----------------------------------------------------------------------------
 
-resource "kubernetes_config_map" "frontend_nginx" {
-  metadata {
-    name      = "frontend-nginx-config"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
-  }
-
-  data = {
-    "default.conf" = <<-EOT
-      server {
-          listen 3000;
-          server_name localhost;
-          root /usr/share/nginx/html;
-          index index.html;
-
-          location / {
-              try_files $uri $uri/ /index.html;
-          }
-
-          location /api/ {
-              proxy_pass http://backend:8000;
-              proxy_http_version 1.1;
-              proxy_set_header Host $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto $scheme;
-          }
-      }
-    EOT
-  }
-}
-
 resource "kubernetes_deployment" "backend" {
   metadata {
     name      = "backend"
@@ -528,6 +497,37 @@ resource "kubernetes_service" "backend" {
 # -----------------------------------------------------------------------------
 # Frontend
 # -----------------------------------------------------------------------------
+
+resource "kubernetes_config_map" "frontend_nginx" {
+  metadata {
+    name      = "frontend-nginx-config"
+    namespace = kubernetes_namespace.train_routing.metadata[0].name
+  }
+
+  data = {
+    "default.conf" = <<-EOT
+      server {
+          listen 3000;
+          server_name localhost;
+          root /usr/share/nginx/html;
+          index index.html;
+
+          location / {
+              try_files $uri $uri/ /index.html;
+          }
+
+          location /api/ {
+              proxy_pass http://backend:8000;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+    EOT
+  }
+}
 
 resource "kubernetes_deployment" "frontend" {
   metadata {
