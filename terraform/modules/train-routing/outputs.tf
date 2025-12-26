@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 
 output "namespace" {
-  value = kubernetes_namespace.train_routing.metadata[0].name
+  value = kubernetes_namespace_v1.train_routing.metadata[0].name
 }
 
 output "frontend_url" {

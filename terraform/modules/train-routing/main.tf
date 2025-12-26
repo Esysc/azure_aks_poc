@@ -27,7 +27,7 @@ resource "tls_private_key" "jwt" {
 # Namespace
 # -----------------------------------------------------------------------------
 
-resource "kubernetes_namespace" "train_routing" {
+resource "kubernetes_namespace_v1" "train_routing" {
   metadata {
     name = var.namespace
     labels = {
@@ -41,10 +41,10 @@ resource "kubernetes_namespace" "train_routing" {
 # Secrets
 # -----------------------------------------------------------------------------
 
-resource "kubernetes_secret" "train_routing_secrets" {
+resource "kubernetes_secret_v1" "train_routing_secrets" {
   metadata {
     name      = "train-routing-secrets"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   data = {
@@ -58,12 +58,12 @@ resource "kubernetes_secret" "train_routing_secrets" {
 }
 
 # JWT keys secret (auto-generated for multi-replica consistency)
-resource "kubernetes_secret" "jwt_keys" {
+resource "kubernetes_secret_v1" "jwt_keys" {
   count = var.generate_jwt_keys ? 1 : 0
 
   metadata {
     name      = "jwt-keys"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   data = {
@@ -78,12 +78,12 @@ resource "kubernetes_secret" "jwt_keys" {
 # -----------------------------------------------------------------------------
 
 # PVC only for Azure (local uses emptyDir)
-resource "kubernetes_persistent_volume_claim" "postgres" {
+resource "kubernetes_persistent_volume_claim_v1" "postgres" {
   count = local.is_azure ? 1 : 0
 
   metadata {
     name      = "postgres-pvc"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   spec {
@@ -100,10 +100,10 @@ resource "kubernetes_persistent_volume_claim" "postgres" {
   wait_until_bound = false
 }
 
-resource "kubernetes_deployment" "postgres" {
+resource "kubernetes_deployment_v1" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
     labels = {
       app = "postgres"
     }
@@ -138,7 +138,7 @@ resource "kubernetes_deployment" "postgres" {
             name = "POSTGRES_USER"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "POSTGRES_USER"
               }
             }
@@ -148,7 +148,7 @@ resource "kubernetes_deployment" "postgres" {
             name = "POSTGRES_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "POSTGRES_PASSWORD"
               }
             }
@@ -158,7 +158,7 @@ resource "kubernetes_deployment" "postgres" {
             name = "POSTGRES_DB"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "POSTGRES_DB"
               }
             }
@@ -201,7 +201,7 @@ resource "kubernetes_deployment" "postgres" {
           content {
             name = "postgres-storage"
             persistent_volume_claim {
-              claim_name = kubernetes_persistent_volume_claim.postgres[0].metadata[0].name
+              claim_name = kubernetes_persistent_volume_claim_v1.postgres[0].metadata[0].name
             }
           }
         }
@@ -218,10 +218,10 @@ resource "kubernetes_deployment" "postgres" {
   }
 }
 
-resource "kubernetes_service" "postgres" {
+resource "kubernetes_service_v1" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   spec {
@@ -242,10 +242,10 @@ resource "kubernetes_service" "postgres" {
 # Backend
 # -----------------------------------------------------------------------------
 
-resource "kubernetes_deployment" "backend" {
+resource "kubernetes_deployment_v1" "backend" {
   metadata {
     name      = "backend"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
     labels = {
       app = "backend"
     }
@@ -299,7 +299,7 @@ resource "kubernetes_deployment" "backend" {
             name = "APP_SECRET"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "APP_SECRET"
               }
             }
@@ -309,7 +309,7 @@ resource "kubernetes_deployment" "backend" {
             name = "DATABASE_URL"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "DATABASE_URL"
               }
             }
@@ -329,7 +329,7 @@ resource "kubernetes_deployment" "backend" {
             name = "JWT_PASSPHRASE"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.train_routing_secrets.metadata[0].name
+                name = kubernetes_secret_v1.train_routing_secrets.metadata[0].name
                 key  = "JWT_PASSPHRASE"
               }
             }
@@ -377,7 +377,7 @@ resource "kubernetes_deployment" "backend" {
           content {
             name = "jwt-keys"
             secret {
-              secret_name = kubernetes_secret.jwt_keys[0].metadata[0].name
+              secret_name = kubernetes_secret_v1.jwt_keys[0].metadata[0].name
             }
           }
         }
@@ -385,13 +385,13 @@ resource "kubernetes_deployment" "backend" {
     }
   }
 
-  depends_on = [kubernetes_deployment.postgres]
+  depends_on = [kubernetes_deployment_v1.postgres]
 }
 
-resource "kubernetes_service" "backend" {
+resource "kubernetes_service_v1" "backend" {
   metadata {
     name      = "backend"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   spec {
@@ -412,10 +412,10 @@ resource "kubernetes_service" "backend" {
 # Frontend
 # -----------------------------------------------------------------------------
 
-resource "kubernetes_config_map" "frontend_nginx" {
+resource "kubernetes_config_map_v1" "frontend_nginx" {
   metadata {
     name      = "frontend-nginx-config"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
   }
 
   data = {
@@ -443,10 +443,10 @@ resource "kubernetes_config_map" "frontend_nginx" {
   }
 }
 
-resource "kubernetes_deployment" "frontend" {
+resource "kubernetes_deployment_v1" "frontend" {
   metadata {
     name      = "frontend"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
     labels = {
       app = "frontend"
     }
@@ -507,20 +507,20 @@ resource "kubernetes_deployment" "frontend" {
         volume {
           name = "nginx-config"
           config_map {
-            name = kubernetes_config_map.frontend_nginx.metadata[0].name
+            name = kubernetes_config_map_v1.frontend_nginx.metadata[0].name
           }
         }
       }
     }
   }
 
-  depends_on = [kubernetes_deployment.backend]
+  depends_on = [kubernetes_deployment_v1.backend]
 }
 
-resource "kubernetes_service" "frontend" {
+resource "kubernetes_service_v1" "frontend" {
   metadata {
     name      = "frontend"
-    namespace = kubernetes_namespace.train_routing.metadata[0].name
+    namespace = kubernetes_namespace_v1.train_routing.metadata[0].name
     labels = {
       app = "frontend"
     }
