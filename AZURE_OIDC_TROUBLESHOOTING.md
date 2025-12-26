@@ -1,5 +1,9 @@
 # GitHub Actions Azure OIDC Troubleshooting Guide
 
+> **⚠️ ARCHIVED**: This document is kept for reference purposes only. CI/CD deployment to Azure is no longer used in this project. The information below may still be useful if you re-enable Azure deployments via GitHub Actions.
+
+---
+
 ## Problem
 
 GitHub Actions workflow fails to authenticate to Azure with errors such as:
