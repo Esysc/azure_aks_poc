@@ -193,14 +193,19 @@ terraform destroy
 ├── terraform/
 │   ├── modules/
 │   │   └── train-routing/     # Shared K8s app resources (used by both local & azure)
-│   │       └── main.tf        # Namespace, secrets, deployments, services
+│   │       ├── main.tf        # Namespace, secrets, deployments, services
+│   │       ├── variables.tf   # Input variable definitions
+│   │       └── outputs.tf     # Output value definitions
 │   ├── local/                 # Local Kind deployment config
-│   │   └── main.tf           # Kubernetes provider + module call
+│   │   ├── main.tf            # Kubernetes provider + module call
+│   │   ├── versions.tf        # Terraform and provider requirements
+│   │   └── outputs.tf         # Output value definitions
 │   └── azure/                 # Azure AKS deployment config
-│       ├── main.tf           # AKS cluster + Kubernetes provider + module call
+│       ├── main.tf            # AKS cluster + Kubernetes provider + module call
+│       ├── versions.tf        # Terraform, providers, and backend config
+│       ├── variables.tf       # Input variable definitions
+│       ├── outputs.tf         # Output value definitions
 │       └── terraform.tfvars.example
-├── k8s/                       # Raw Kubernetes manifests (reference)
-│   └── train-routing/        # Train Routing app manifests
 ├── kind-config.yaml          # Kind cluster configuration
 ├── .github/workflows/        # CI/CD
 │   └── ci.yaml              # GitHub Actions: Terraform plan
