@@ -48,6 +48,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     type = "SystemAssigned"
   }
 
+  # Required since azurerm 5.x (breaking change).
+  # "Manual" keeps Node Auto-Provisioning (NAP) disabled, matching previous behavior.
+  node_provisioning_profile {
+    mode = "Manual"
+  }
+
   network_profile {
     network_plugin = "azure"
     dns_service_ip = "10.0.0.10"
